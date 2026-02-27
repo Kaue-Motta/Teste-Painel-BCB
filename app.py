@@ -2,8 +2,12 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util import Retry
 import urllib3
-import io
+import urllib3
+from urllib3.util import Retry
+import io io
 
 # 1. Configurações Iniciais e Segurança
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -74,14 +78,20 @@ SERIES = {
     }
 }
 
-@st.cache_data(show_spinner="Acessando API do Banco Central...")
+@st.cache_data(show_spinner="Conectando ao Banco Central (SGS)...", ttl=3600)
 def carregando_dados():
+    session = requests.Session()
+    # Tentará 5 vezes se houver erro de conexão ou timeout
+    retries = Retry(total=5, backoff_factor=2, status_forcelist=[500, 502, 503, 504])
+    session.mount('https://', HTTPAdapter(max_retries=retries))
+    
     lista_dfs = []
     for categoria, subseries in SERIES.items():
         for nome, codigo in subseries.items():
             url = f"https://api.bcb.gov.br/dados/serie/bcdata.sgs.{codigo}/dados?formato=json&dataInicial=01/01/2015"
             try:
-                response = requests.get(url, verify=False, timeout=15)
+                # Aumentamos o timeout para 60 segundos (padrão de segurança para APIs lentas)
+                response = session.get(url, timeout=60, verify=True)
                 if response.status_code == 200:
                     dados_json = response.json()
                     if dados_json:
@@ -91,14 +101,18 @@ def carregando_dados():
                         df_temp = df_temp.set_index('data')
                         df_temp.columns = [f"{categoria} - {nome}"]
                         lista_dfs.append(df_temp)
+            except requests.exceptions.Timeout:
+                st.sidebar.warning(f"Tempo esgotado na série {nome}. Tentando prosseguir...")
             except Exception as e:
-                st.warning(f"Erro ao baixar série {codigo} ({nome}): {e}")
-                
+                continue
+
     if not lista_dfs:
-        st.error("Nenhum dado foi baixado.")
+        st.error("O servidor do Banco Central não respondeu a tempo. Tente atualizar a página.")
+        st.stop()
+
     df_final = pd.concat(lista_dfs, axis=1)
-    df_final = df_final.dropna(how='all') # Remove linhas onde todas as colunas são NaN
-    df_final.index.name = None 
+    df_final = df_final[~df_final.index.duplicated(keep='first')]
+    df_final.index.name = None
     return df_final
 
     df_final = pd.concat(lista_dfs, axis=1)
@@ -898,4 +912,5 @@ try:
             st.warning("Dados de Inadimplência insuficientes para calcular variações.")
 
 except Exception as e:
+
     st.error(f"Erro geral no processamento do painel: {e}")
