@@ -127,6 +127,18 @@ def formatar_brl(valor):
 # Execução do carregamento
 df_bruto = carregando_dados()
 
+# --- LOG DE ATUALIZAÇÃO ---
+from datetime import datetime
+import pytz
+
+# Define o fuso horário de Brasília
+timezone = pytz.timezone('America/Sao_Paulo')
+data_atualizacao = datetime.now(timezone).strftime('%d/%m/%Y %H:%M:%S')
+
+# Exibe na barra lateral
+st.sidebar.markdown("---")
+st.sidebar.caption(f"✨ **Última atualização (SGS/BCB):**\n{data_atualizacao}")
+
 # --- SIDEBAR ---
 st.sidebar.header("⚙️ Filtros e Opções")
 if df_bruto.empty:
@@ -912,4 +924,5 @@ try:
 except Exception as e:
 
     st.error(f"Erro geral no processamento do painel: {e}")
+
 
