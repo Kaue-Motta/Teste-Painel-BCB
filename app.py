@@ -79,7 +79,7 @@ SERIES = {
     }
 }
 
-@st.cache_data(show_spinner=False, ttl=3600) 
+@st.cache_data(show_spinner=False, ttl=18000) 
 def carregando_dados():
     session = requests.Session()
     retries = Retry(total=5, backoff_factor=1, status_forcelist=[500, 502, 503, 504])
@@ -1126,4 +1126,5 @@ try:
             st.warning("Dados de Inadimplência insuficientes para calcular variações.")
 
 except Exception as e:
+
     st.error(f"Erro geral no processamento do painel: {e}")
